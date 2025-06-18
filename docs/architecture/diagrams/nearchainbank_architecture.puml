@@ -1,0 +1,93 @@
+@startuml
+!theme plain
+skinparam linetype ortho
+
+skinparam component {
+  BorderColor #238636
+  BackgroundColor #DFF0D8
+  ArrowColor #238636
+  FontColor #333
+  FontSize 13
+}
+skinparam database {
+  BorderColor #0056B3
+  BackgroundColor #B3D9FF
+  ArrowColor #0056B3
+  FontColor #333
+  FontSize 13
+}
+skinparam cloud {
+  BorderColor #8A2BE2
+  BackgroundColor #E6E6FA
+  ArrowColor #8A2BE2
+  FontColor #333
+  FontSize 13
+}
+skinparam rectangle {
+  BorderColor #FF8C00
+  BackgroundColor #FFF8DC
+  ArrowColor #FF8C00
+  FontColor #333
+  FontSize 13
+}
+
+title NearChainBank System Architecture (Compact)
+
+left to right direction
+
+rectangle "Client Layer" {
+  [Mobile App\n(iOS/Android)] as mobile
+  [Web App] as web
+}
+
+rectangle "Off-Chain Services" {
+  [Backend API] as api
+  [Biometric Service] as bio
+  [Payment Gateway] as pay
+  [Bank API Integrations] as bankapi
+  [DEX Integrations] as dex
+  cloud "Chainlink DON" as don
+  [Cache] as cache
+  database "DB\n(Postgre/Mongo)" as db
+}
+
+rectangle "Blockchain Layer" {
+  [NEAR] as near
+  [Aurora EVM] as aurora
+  [Avalanche\nC-Chain/Subnets] as ava
+  [Aave] as aave
+  [Ondo Finance] as ondo
+}
+
+'--- Client connections
+mobile --> api : REST/GraphQL
+web --> api : REST/GraphQL
+
+'--- Backend to services
+api --> bio : Secure Match
+api --> pay : API Call
+api --> bankapi : API Call
+api --> dex : DeFi API
+api --> don : Read Feeds
+api --> cache : RW
+api --> db : CRUD
+
+'--- DEX to chains
+dex --> don : Prices
+dex --> aurora : Swap
+dex --> ava : Swap
+
+'--- Backend to chains
+api --> near : Tx (DID)
+api --> aurora : Tx (DeFi)
+api --> ava : Tx (Future)
+
+aurora <--> aave : DeFi
+aurora <--> ondo : RWA
+ava <--> ondo : RWA
+
+don --> near : Feed
+don --> aurora : Feed
+don --> ava : Feed
+
+@enduml

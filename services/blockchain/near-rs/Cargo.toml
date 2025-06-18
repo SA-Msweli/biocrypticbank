@@ -1,0 +1,15 @@
+# services/blockchain/near-rs/Cargo.toml
+[workspace]
+members = [
+    "core-banking",
+]
+resolver = "2" # Use the new Cargo resolver for better dependency resolution
+
+[profile.release]
+codegen-units = 1 # Optimize for size
+opt-level = "z"   # Optimize for size
+lto = true        # Link-time optimization
+debug = false     # No debug information
+panic = "abort"   # Abort on panic (smaller binary)
+incremental = false
+overflow-checks = true

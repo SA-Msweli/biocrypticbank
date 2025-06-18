@@ -1,0 +1,51 @@
+@startuml
+!theme plain
+
+skinparam component {
+  BorderColor #238636
+  BackgroundColor #DFF0D8
+  ArrowColor #238636
+  FontColor #333
+  FontSize 14
+}
+skinparam database {
+  BorderColor #0056B3
+  BackgroundColor #B3D9FF
+  ArrowColor #0056B3
+  FontColor #333
+  FontSize 14
+}
+skinparam cloud {
+  BorderColor #8A2BE2
+  BackgroundColor #E6E6FA
+  ArrowColor #8A2BE2
+  FontColor #333
+  FontSize 14
+}
+
+title NEAR Rust Contracts Detailed Architecture
+
+component "NEAR Protocol" as near_protocol {
+  rectangle "near-rs Project" as near_rs_project {
+    component "Core Banking Contract\n(lib.rs)" as near_core_banking
+    component "DID Management Contract\n(did_contract.rs)" as did_contract
+    component "Account Recovery Contract\n(recovery_contract.rs)" as recovery_contract
+  }
+}
+
+cloud "Chainlink DON" as chainlink_don
+rectangle "Backend API" as backend_api
+
+' Internal NEAR Rust Contract Interactions
+recovery_contract ..> near_core_banking : Query Balance (for recovery fee)
+recovery_contract ..> did_contract : Query DID (for guardian identity)
+near_core_banking <.. recovery_contract : Potential AccountKey Update (via system call)
+
+' Interactions with external layers
+backend_api --> near_core_banking : Deposit/Withdraw/Query
+backend_api --> did_contract : Register/Add/Remove DID/VCs
+backend_api --> recovery_contract : Set Guardians/Initiate/Approve Recovery
+
+near_core_banking --> chainlink_don : Price Data (Future)
+
+@enduml

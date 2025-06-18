@@ -1,0 +1,42 @@
+@startuml
+!theme plain
+
+skinparam component {
+  BorderColor #238636
+  BackgroundColor #DFF0D8
+  ArrowColor #238636
+  FontColor #333
+  FontSize 14
+}
+skinparam database {
+  BorderColor #0056B3
+  BackgroundColor #B3D9FF
+  ArrowColor #0056B3
+  FontColor #333
+  FontSize 14
+}
+skinparam cloud {
+  BorderColor #8A2BE2
+  BackgroundColor #E6E6FA
+  ArrowColor #8A2BE2
+  FontColor #333
+  FontSize 14
+}
+
+title NEAR Python Contracts Detailed Architecture
+
+component "NEAR Protocol" as near_protocol {
+  rectangle "near-py Project" as near_py_project {
+    component "Core Banking Contract\n(main.py)" as near_py_core_banking
+  }
+}
+
+cloud "Chainlink DON" as chainlink_don
+rectangle "Backend API" as backend_api
+
+' Interactions with external layers
+backend_api --> near_py_core_banking : Deposit/Withdraw/Query
+
+near_py_core_banking --> chainlink_don : Price Data (Future)
+
+@enduml

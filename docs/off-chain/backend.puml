@@ -1,0 +1,104 @@
+@startuml
+!theme plain
+
+skinparam component {
+  BorderColor #4B0082
+  BackgroundColor #E6E6FA
+  ArrowColor #4B0082
+  FontColor #333
+  FontSize 14
+}
+skinparam database {
+  BorderColor #0056B3
+  BackgroundColor #B3D9FF
+  ArrowColor #0056B3
+  FontColor #333
+  FontSize 14
+}
+skinparam cloud {
+  BorderColor #8A2BE2
+  BackgroundColor #E6E6FA
+  ArrowColor #8A2BE2
+  FontColor #333
+  FontSize 14
+}
+skinparam rectangle {
+  BorderColor #FF8C00
+  BackgroundColor #FFF8DC
+  ArrowColor #FF8C00
+  FontColor #333
+  FontSize 14
+}
+
+' Enforce straight lines for all connections
+skinparam linetype ortho
+
+title Off-Chain Services Layer Detailed Architecture
+
+rectangle "Client Layer" as client_layer {
+  component "Web App" as web_app
+  component "Mobile App" as mobile_app
+}
+
+rectangle "Off-Chain Services Layer" as offchain_services_layer {
+  component "Backend API" as backend_api {
+    rectangle "Controllers" as controllers
+    rectangle "Services" as backend_services
+    rectangle "Repositories" as repositories
+    rectangle "Middleware" as middleware
+  }
+
+  rectangle "Integrations Services" as integrations_services {
+    component "Biometric Matching Service" as biometric_service
+    component "Payment Gateway Integrations" as payment_gateway
+    component "Traditional Banking API Integrations" as traditional_api
+    component "DEX / Liquidity Provider Integrations" as dex_integrations
+  }
+}
+
+database "Database (PostgreSQL/MongoDB)" as db
+component "Cache Services (Redis)" as cache_services
+cloud "Chainlink DON" as chainlink_don
+
+rectangle "Blockchain Layer" as blockchain_layer {
+  component "NEAR Protocol" as near_protocol
+  component "Aurora EVM" as aurora_evm
+  component "Avalanche C-Chain" as avalanche_c_chain
+}
+
+' Client to Backend
+web_app --> backend_api : REST/GraphQL API Calls
+mobile_app --> backend_api : REST/GraphQL API Calls
+
+' Backend Internal Flows
+controllers ..> backend_services : Handles Requests
+backend_services ..> repositories : Data Operations
+repositories ..> db : CRUD Operations
+backend_api ..> middleware : Authentication/Logging
+backend_api --> cache_services : Read/Write Cache
+
+' Backend to Integrations
+backend_services --> biometric_service : User Biometric Verification
+backend_services --> payment_gateway : Fiat Deposits/Withdrawals
+backend_services --> traditional_api : Traditional Bank Account Mgmt
+backend_services --> dex_integrations : Cross-token Swaps / Rates
+
+' Integrations to External/Blockchain
+payment_gateway --> ext_payment_providers : External Payment Providers
+traditional_api --> ext_banking_apis : External Banking APIs
+dex_integrations --> near_protocol : Swap Execution (via Ref Finance etc.)
+dex_integrations --> aurora_evm : Swap Execution (via DEXes)
+dex_integrations --> avalanche_c_chain : Swap Execution (via DEXes)
+dex_integrations --> chainlink_don : Price Data for Routing
+
+' Backend to Blockchain (Direct Smart Contract Interaction)
+backend_api --> near_protocol : Send NEAR Tx (DID, Recovery, Core)
+backend_api --> aurora_evm : Send EVM Tx (Aave, RWA, Core EVM)
+backend_api --> avalanche_c_chain : Send EVM Tx (Aave, RWA, Core EVM)
+
+' Oracles
+chainlink_don --> near_protocol : Data Feeds / Automation
+chainlink_don --> aurora_evm : Data Feeds / Automation
+chainlink_don --> avalanche_c_chain : Data Feeds / Automation
+
+@enduml

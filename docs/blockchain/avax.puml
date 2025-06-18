@@ -1,0 +1,58 @@
+@startuml
+!theme plain
+
+skinparam component {
+  BorderColor #FF8C00
+  BackgroundColor #FFF8DC
+  ArrowColor #FF8C00
+  FontColor #333
+  FontSize 14
+}
+skinparam database {
+  BorderColor #0056B3
+  BackgroundColor #B3D9FF
+  ArrowColor #0056B3
+  FontColor #333
+  FontSize 14
+}
+skinparam cloud {
+  BorderColor #8A2BE2
+  BackgroundColor #E6E6FA
+  ArrowColor #8A2BE2
+  FontColor #333
+  FontSize 14
+}
+
+title Avalanche Contracts Detailed Architecture
+
+component "Avalanche (C-Chain)" as avalanche_c_chain {
+  rectangle "avax Project" as avax_project {
+    component "Avalanche Core Banking Contract\n(AvalancheCoreBanking.sol)" as avax_core_banking
+    component "Aave Integration Contract\n(AaveIntegration.sol)" as avax_aave_integration
+    component "RWA Hub Contract\n(RWAHub.sol)" as avax_rwa_hub
+  }
+}
+
+database "Aave Protocol" as aave_protocol
+database "Ondo Finance Contracts" as ondo_finance
+cloud "Chainlink DON" as chainlink_don
+rectangle "Backend API" as backend_api
+
+' Internal Avalanche Contract Interactions
+avax_core_banking --> avax_aave_integration : Deposit/Withdraw to Aave (internal)
+avax_core_banking --> avax_rwa_hub : Send Collateral (internal)
+
+' Interactions with external protocols
+avax_aave_integration <--> aave_protocol : Supply/Withdraw Assets
+avax_rwa_hub <--> ondo_finance : Interact (RWA Issuance/Mgmt)
+
+' Interactions with external layers
+backend_api --> avax_core_banking : Deposit/Withdraw ERC20, Bridge to DeFi/RWA
+backend_api --> avax_aave_integration : Direct Query (e.g., supplied balance)
+backend_api --> avax_rwa_hub : Direct Query (e.g., RWA info)
+
+avax_core_banking --> chainlink_don : Price Data (for conversions)
+avax_aave_integration --> chainlink_don : Price Feeds (Aave's reliance)
+avax_rwa_hub --> chainlink_don : RWA Valuation Data (Future)
+
+@enduml

@@ -1,0 +1,12 @@
+.env*
+.env
+obj
+bin
+build
+*_with_exports_with_abi_with_metadata.py
+*_with_exports_with_abi.py
+*_with_exports.py
+out
+*/node_modules
+package-lock.json
+*/venv
