@@ -6,19 +6,15 @@ use near_sdk::{
 };
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 
-// Define a storage key for the LookupMap
 #[derive(BorshSerialize, BorshDeserialize, BorshStorageKey, Debug)]
 pub enum StorageKey {
   Balances,
 }
 
-// Define the contract state
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
 pub struct BioCrypticBankCore {
-  // Maps AccountId to their deposited NEAR balance
   pub balances: LookupMap<AccountId, NearToken>,
-  // The owner of the contract, typically for administrative functions
   pub owner_id: AccountId,
 }
 

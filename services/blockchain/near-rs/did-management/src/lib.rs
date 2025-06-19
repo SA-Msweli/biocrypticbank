@@ -1,33 +1,23 @@
 // services/blockchain/near-rs/did-management/src/lib.rs
 use near_sdk::{near, BorshStorageKey, PanicOnDefault, AccountId};
-use near_sdk::store::UnorderedMap; // Updated import path for UnorderedMap
+use near_sdk::store::UnorderedMap;
 
-// Define the DID structure - derive necessary traits if returned as public view function
-// For internal storage in collections, near-sdk handles serialization implicitly.
 #[derive(Debug, PartialEq, near_sdk::serde::Serialize, near_sdk::serde::Deserialize)]
-#[serde(crate = "near_sdk::serde")] // Important for serde_json
+#[serde(crate = "near_sdk::serde")]
 pub struct DidDocument {
-    // The DID itself, typically a URN or similar identifier.
-    // For simplicity, we'll use AccountId as the DID subject for now.
     pub owner_id: AccountId,
-    // A list of Verifiable Credential (VC) hashes or URIs associated with this DID.
-    // In a real-world scenario, these would be pointers to off-chain VCs.
     pub verifiable_credentials: Vec<String>,
-    // Timestamp of when the DID was created or last updated.
     pub last_updated: u64,
 }
 
-// Define a storage key for the LookupMap (new in near-sdk 5.x)
 #[derive(BorshStorageKey, Debug)]
 pub enum StorageKey {
     Dids,
 }
 
-// Define the contract state
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
 pub struct DidRegistry {
-    // Maps AccountId to their DidDocument.
     dids: UnorderedMap<AccountId, DidDocument>,
 }
 
@@ -37,7 +27,7 @@ impl DidRegistry {
     #[init]
     pub fn new() -> Self {
         Self {
-            dids: UnorderedMap::new(StorageKey::Dids), // Use StorageKey for UnorderedMap
+            dids: UnorderedMap::new(StorageKey::Dids),
         }
     }
 
@@ -108,7 +98,7 @@ impl DidRegistry {
     }
 
     /// Checks if a DID exists for a given AccountId.
-    #[allow(dead_code)] // Keep for potential future use
+    #[allow(dead_code)]
     pub fn did_exists(&self, account_id: AccountId) -> bool {
         self.dids.contains_key(&account_id)
     }
