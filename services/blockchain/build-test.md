@@ -1,4 +1,4 @@
-NearChainBank Smart Contract Compilation and Testing Guide
+BioCrypticBank Smart Contract Compilation and Testing Guide
 This guide outlines the steps and commands needed to compile and test the smart contracts for each blockchain project within your services/blockchain/ directory.
 
 1. near-rs/ (Native NEAR Rust Contracts)

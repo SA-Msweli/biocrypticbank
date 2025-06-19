@@ -15,7 +15,7 @@ pub enum StorageKey {
 // Define the contract state
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
-pub struct NearChainBankCore {
+pub struct BioCrypticBankCore {
   // Maps AccountId to their deposited NEAR balance
   pub balances: LookupMap<AccountId, NearToken>,
   // The owner of the contract, typically for administrative functions
@@ -23,7 +23,7 @@ pub struct NearChainBankCore {
 }
 
 #[near]
-impl NearChainBankCore {
+impl BioCrypticBankCore {
   /// Initializes the contract with an owner.
   #[init]
   pub fn new(owner_id: AccountId) -> Self {

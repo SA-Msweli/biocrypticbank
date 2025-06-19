@@ -1,6 +1,6 @@
 # services/blockchain/near-rs/core-banking/Cargo.toml
 [package]
-name = "near-chain-bank-core"
+name = "bio-cryptic-bank-core"
 version = "0.1.0"
 edition = "2021"
 

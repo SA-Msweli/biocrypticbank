@@ -1,7 +1,7 @@
-NearChainBank
+BioCrypticBank
 Project Name: (To Be Decided)
 Overview
-NearChainBank is a cutting-edge decentralized financial platform designed to bridge the gap between traditional banking services and the rapidly evolving world of blockchain. Leveraging the power of multiple blockchain networks, including NEAR Protocol, Aurora EVM, and Avalanche, NearChainBank aims to provide secure, transparent, and efficient financial services, including digital identity management, multi-option account recovery, core banking functionalities, and seamless integration with decentralized finance (DeFi) and Real-World Asset (RWA) ecosystems.
+BioCrypticBank is a cutting-edge decentralized financial platform designed to bridge the gap between traditional banking services and the rapidly evolving world of blockchain. Leveraging the power of multiple blockchain networks, including NEAR Protocol, Aurora EVM, and Avalanche, BioCrypticBank aims to provide secure, transparent, and efficient financial services, including digital identity management, multi-option account recovery, core banking functionalities, and seamless integration with decentralized finance (DeFi) and Real-World Asset (RWA) ecosystems.
 
 This project is structured to ensure scalability, robust security, and a user-friendly experience across both mobile and web platforms.
 
@@ -29,7 +29,7 @@ Biometric Authentication: Enhanced security features for user authentication.
 Comprehensive Backend Services: Robust off-chain services to manage user accounts, transactions, and integrations.
 
 Architecture Overview
-NearChainBank employs a multi-layered architecture to ensure a modular, scalable, and resilient system:
+BioCrypticBank employs a multi-layered architecture to ensure a modular, scalable, and resilient system:
 
 Client Layer: Mobile (Flutter) and Web (Next.js/React) applications providing user interfaces.
 
@@ -71,15 +71,15 @@ Containerization: Docker
 Version Control: Git
 
 Setup and Installation
-To set up the NearChainBank project for development, follow these high-level steps. More detailed instructions can be found in the docs/ directory.
+To set up the BioCrypticBank project for development, follow these high-level steps. More detailed instructions can be found in the docs/ directory.
 
 Clone the Repository:
 
-git clone https://github.com/your-org/nearchainbank.git
-cd nearchainbank
+git clone https://github.com/your-org/BioCrypticBank.git
+cd BioCrypticBank
 
 Environment Variables:
-Create .env files based on .env.example in each service directory (services/client/ncb_mobile, services/client/ncb-web, services/backend, services/integrations/*) and fill in the required configurations (API keys, RPC URLs, etc.).
+Create .env files based on .env.example in each service directory (services/client/bcb_mobile, services/client/bcb-web, services/backend, services/integrations/*) and fill in the required configurations (API keys, RPC URLs, etc.).
 
 Install Dependencies:
 
@@ -91,7 +91,7 @@ Flutter SDK: For mobile app development.
 
 Rust Toolchain & wasm32-unknown-unknown target: For NEAR native contract development.
 
-Run npm install or yarn install in services/client/ncb-web and npx hardhat compile or forge build in services/blockchain/aurora and services/blockchain/avax.
+Run npm install or yarn install in services/client/bcb-web and npx hardhat compile or forge build in services/blockchain/aurora and services/blockchain/avax.
 
 Database Setup:
 Refer to scripts/db_migrations/init_db.sql and relevant backend documentation to set up your database.
@@ -131,7 +131,7 @@ Aurora/Avalanche Solidity: cd services/blockchain/aurora && npx hardhat test or 
 
 Backend: Refer to the services/backend/Tests directory for details.
 
-Client: Refer to services/client/ncb_mobile/test and services/client/ncb-web/test.
+Client: Refer to services/client/bcb_mobile/test and services/client/bcb-web/test.
 
 Contribution
 Contributions are welcome! Please refer to our CONTRIBUTING.md (TBD) for guidelines on how to contribute to the project.

@@ -1,93 +1,87 @@
 @startuml
 !theme plain
-skinparam linetype ortho
 
 skinparam component {
   BorderColor #238636
   BackgroundColor #DFF0D8
   ArrowColor #238636
   FontColor #333
-  FontSize 13
+  FontSize 14
 }
 skinparam database {
   BorderColor #0056B3
   BackgroundColor #B3D9FF
   ArrowColor #0056B3
   FontColor #333
-  FontSize 13
+  FontSize 14
 }
 skinparam cloud {
   BorderColor #8A2BE2
   BackgroundColor #E6E6FA
   ArrowColor #8A2BE2
   FontColor #333
-  FontSize 13
+  FontSize 14
 }
 skinparam rectangle {
   BorderColor #FF8C00
   BackgroundColor #FFF8DC
   ArrowColor #FF8C00
   FontColor #333
-  FontSize 13
+  FontSize 14
 }
 
-title NearChainBank System Architecture (Compact)
+title BioCrypticBank System Architecture
 
-left to right direction
-
-rectangle "Client Layer" {
-  [Mobile App\n(iOS/Android)] as mobile
-  [Web App] as web
+rectangle "Client Layer" as client_layer {
+  component "Mobile App\n(iOS/Android)" as mobile_app
+  component "Web App" as web_app
 }
 
-rectangle "Off-Chain Services" {
-  [Backend API] as api
-  [Biometric Service] as bio
-  [Payment Gateway] as pay
-  [Bank API Integrations] as bankapi
-  [DEX Integrations] as dex
-  cloud "Chainlink DON" as don
-  [Cache] as cache
-  database "DB\n(Postgre/Mongo)" as db
+rectangle "Off-Chain Services Layer" as offchain_layer {
+  component "Backend API" as backend_api
+  component "Biometric Matching Service" as biometric_service
+  component "Payment Gateway Integrations" as payment_gateway
+  component "Traditional Banking API Integrations" as traditional_api
+  component "DEX / Liquidity Provider Integrations" as dex_integrations
+  cloud "Chainlink DON" as chainlink_don
+  component "Cache Services" as cache_services
+  database "Database\n(PostgreSQL/MongoDB)" as db
 }
 
-rectangle "Blockchain Layer" {
-  [NEAR] as near
-  [Aurora EVM] as aurora
-  [Avalanche\nC-Chain/Subnets] as ava
-  [Aave] as aave
-  [Ondo Finance] as ondo
+rectangle "Blockchain Layer" as blockchain_layer {
+  component "NEAR Protocol" as near_protocol
+  component "Aurora EVM" as aurora_evm
+  component "Avalanche\n(C-Chain & Subnets)" as avalanche
+  component "Aave Protocol" as aave
+  component "Ondo Finance Contracts" as ondo_finance
 }
 
-'--- Client connections
-mobile --> api : REST/GraphQL
-web --> api : REST/GraphQL
+' Connections
+mobile_app --> backend_api : REST/GraphQL
+web_app --> backend_api : REST/GraphQL
 
-'--- Backend to services
-api --> bio : Secure Match
-api --> pay : API Call
-api --> bankapi : API Call
-api --> dex : DeFi API
-api --> don : Read Feeds
-api --> cache : RW
-api --> db : CRUD
+backend_api --> biometric_service : Secure API Call
+backend_api --> payment_gateway : API Call
+backend_api --> traditional_api : API Call
+backend_api --> dex_integrations : API Call
+backend_api --> chainlink_don : Read Data Feeds
+backend_api --> cache_services : Read/Write
+backend_api --> db : CRUD
 
-'--- DEX to chains
-dex --> don : Prices
-dex --> aurora : Swap
-dex --> ava : Swap
+dex_integrations --> chainlink_don : Price Data
+dex_integrations --> aurora_evm : Swap Transactions
+dex_integrations --> avalanche : Swap Transactions
 
-'--- Backend to chains
-api --> near : Tx (DID)
-api --> aurora : Tx (DeFi)
-api --> ava : Tx (Future)
+backend_api --> near_protocol : Tx Broadcast (DID, Core)
+backend_api --> aurora_evm : Tx Broadcast (DeFi, RWA initial)
+backend_api --> avalanche : Tx Broadcast (DeFi, RWA future)
 
-aurora <--> aave : DeFi
-aurora <--> ondo : RWA
-ava <--> ondo : RWA
+aurora_evm <--> aave : Interact
+aurora_evm <--> ondo_finance : Interact
+avalanche <--> ondo_finance : Interact (Subnets)
 
-don --> near : Feed
-don --> aurora : Feed
-don --> ava : Feed
+chainlink_don --> near_protocol : Price Data/Automation
+chainlink_don --> aurora_evm : Price Data/Automation
+chainlink_don --> avalanche : Price Data/Automation
 
 @enduml

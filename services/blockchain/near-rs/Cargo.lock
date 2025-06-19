@@ -15,6 +15,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "bio-cryptic-bank-core"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "near-sdk",
+]
+
+[[package]]
 name = "borsh"
 version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -164,14 +172,6 @@ checksum = "4ed69d94899cfdfba16182bd681ad9e6b7f888e29532b04c56da9ae05a4c5bc4"
 dependencies = [
  "borsh",
  "serde",
-]
-
-[[package]]
-name = "near-chain-bank-core"
-version = "0.1.0"
-dependencies = [
- "borsh",
- "near-sdk",
 ]
 
 [[package]]
