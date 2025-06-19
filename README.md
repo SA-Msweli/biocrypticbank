@@ -1,5 +1,5 @@
 BioCrypticBank
-Project Name: (To Be Decided)
+Project Name: 
 Overview
 BioCrypticBank is a cutting-edge decentralized financial platform designed to bridge the gap between traditional banking services and the rapidly evolving world of blockchain. Leveraging the power of multiple blockchain networks, including NEAR Protocol, Aurora EVM, and Avalanche, BioCrypticBank aims to provide secure, transparent, and efficient financial services, including digital identity management, multi-option account recovery, core banking functionalities, and seamless integration with decentralized finance (DeFi) and Real-World Asset (RWA) ecosystems.
 
