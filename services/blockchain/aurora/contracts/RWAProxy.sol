@@ -5,13 +5,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-// Define a placeholder interface for a hypothetical RWA Manager contract
-// In a real system, this interface would be much more detailed,
-// reflecting the specific functions of the RWA tokenization platform.
 interface IRWAManager {
     function getAssetInfo(uint256 assetId) external view returns (string memory name, uint256 value, address owner);
     function transferRWA(uint256 assetId, address to) external;
-    // Add other relevant functions like mint, burn, fractionalize, etc. based on RWA logic.
+    // TODO: Add other relevant functions like mint, burn, fractionalize, etc. based on RWA logic.
 }
 
 /**
@@ -48,16 +45,14 @@ contract RWAProxy is Ownable {
 
     /**
      * @dev Initiates a transfer of a tokenized RWA via the RWA Manager contract.
-     * Only the owner of this proxy can initiate transfers (for demonstration).
-     * In a real system, this would have more sophisticated access control,
-     * likely allowing specific roles or integrating with a custody solution.
      * @param assetId The unique ID of the RWA token to transfer.
      * @param to The recipient's address.
      */
     function initiateRWATransfer(uint256 assetId, address to) external onlyOwner {
+        require(address(rwaManager) != address(0), "RWA Manager not set.");
         require(to != address(0), "Recipient address cannot be zero.");
         rwaManager.transferRWA(assetId, to);
-        emit RWATransferInitiated(assetId, address(this), to); // From address(this) if proxy
+        emit RWATransferInitiated(assetId, address(this), to);
     }
 
     /**
@@ -68,6 +63,7 @@ contract RWAProxy is Ownable {
      * @return owner The owner of the asset.
      */
     function getRWAInfo(uint256 assetId) external view returns (string memory name, uint256 value, address owner) {
+        require(address(rwaManager) != address(0), "RWA Manager not set.");
         return rwaManager.getAssetInfo(assetId);
     }
 
@@ -82,6 +78,8 @@ contract RWAProxy is Ownable {
      * @param amount The amount of tokens to recover.
      */
     function recoverERC20(address tokenAddress, uint256 amount) external onlyOwner {
+        require(tokenAddress != address(0), "Token address cannot be zero.");
+        require(amount > 0, "Amount must be greater than 0.");
         IERC20(tokenAddress).transfer(owner(), amount);
     }
 

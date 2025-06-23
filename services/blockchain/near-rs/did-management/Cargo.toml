@@ -1,6 +1,6 @@
 # services/blockchain/near-rs/did-management/Cargo.toml
 [package]
-name = "near-did-management"
+name = "bcb-did"
 version = "0.1.0"
 edition = "2021"
 

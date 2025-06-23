@@ -1,6 +1,6 @@
 # services/blockchain/near-rs/account-recovery/Cargo.toml
 [package]
-name = "near-account-recovery"
+name = "bcb-acc"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,14 +8,14 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "5.14.0" # Updated to 5.14.0
-borsh = "1.0.0"     # Updated to 1.0.0 for compatibility with near-sdk 5.x
+near-sdk = "5.14.0"
+borsh = "1.0.0"
 
 [profile.release]
-codegen-units = 1 # Optimize for size
-opt-level = "z"   # Optimize for size
-lto = true        # Link-time optimization
-debug = false     # No debug information
-panic = "abort"   # Abort on panic (smaller binary)
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
 incremental = false
 overflow-checks = true

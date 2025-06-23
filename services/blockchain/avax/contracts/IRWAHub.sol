@@ -13,6 +13,4 @@ interface IRWAHub {
     function toggleRWAStatus(uint256 tokenId, bool status) external;
     function getRWAStatus(uint256 tokenId) external view returns (bool);
     function getRWAInfo(uint256 assetId) external view returns (string memory name, uint256 value, address owner);
-    // TODO: Add other relevant functions if AvalancheCoreBanking or other parts of your system
-    // are intended to directly call them on the RWAHub.
 }

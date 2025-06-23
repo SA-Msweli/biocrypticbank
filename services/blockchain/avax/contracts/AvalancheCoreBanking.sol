@@ -4,10 +4,33 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol"; // UPDATED: Corrected import path for Pausable.sol
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
-import {IAaveIntegration} from "./AaveIntegration.sol";
+// Chainlink Imports for Data Feeds and CCIP
+import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import "@chainlink/contracts-ccip/contracts/interfaces/IRouterClient.sol";
+import "@chainlink/contracts-ccip/contracts/libraries/Client.sol";
+import "@chainlink/contracts-ccip/contracts/applications/CCIPReceiver.sol";
+
+import {IAaveIntegration} from "./IAaveIntegration.sol";
 import {IRWAHub} from "./IRWAHub.sol";
+
+// Uniswap V3 SwapRouter interface - Replicated for Avalanche
+interface ISwapRouter {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee; // CORRECTED: Changed from uint252 to uint24 as per Uniswap V3 standard
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+
+    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+}
+
 
 /**
  * @title AvalancheCoreBanking
@@ -15,15 +38,31 @@ import {IRWAHub} from "./IRWAHub.sol";
  * It allows users to deposit, withdraw, and check balances of supported ERC20 tokens.
  * This contract acts as a central vault for these tokens, similar to a traditional bank account.
  * Includes a reentrancy guard for withdrawal safety.
- * It also facilitates interaction with external DeFi (Aave) and RWA protocols.
- * ADDED: Pausable functionality for emergency control.
+ * It also facilitates interaction with external DeFi (Aave) protocols and Real-World Asset (RWA) functionalities.
+ * Integrates Chainlink Data Feeds for price lookups and Chainlink CCIP for cross-chain token transfers
+ * and arbitrary messaging. Now includes on-chain token swapping functionality via Uniswap V3
+ * upon receiving CCIP token transfers (if this contract is a destination).
  */
-contract AvalancheCoreBanking is Ownable, ReentrancyGuard, Pausable {
+contract AvalancheCoreBanking is Ownable, ReentrancyGuard, Pausable, CCIPReceiver {
+    using Client for Client.EVMTokenAmount;
+    using Client for Client.EVMTokenAmount[];
+    using Client for Client.EVM2AnyMessage;
+
     mapping(address => mapping(address => uint256)) public balances;
     mapping(address => bool) public isSupportedToken;
 
     IAaveIntegration public aaveIntegrationContract;
     IRWAHub public rwaHubContract;
+
+    AggregatorV3Interface public priceFeed;
+    IRouterClient public immutable i_router;
+    ISwapRouter public uniswapV3SwapRouter; // Uniswap V3 Swap Router for Avalanche
+
+
+    event MessageSent(bytes32 indexed messageId);
+    event TokensTransferred(bytes32 indexed messageId, address indexed token, uint256 amount);
+    event CCIPMessageReceived(bytes32 indexed messageId, uint64 indexed sourceChainSelector, address indexed sender, bytes data, Client.EVMTokenAmount[] tokenAmounts);
+    event CrossChainSwapExecuted(bytes32 indexed messageId, address indexed inputToken, uint256 inputAmount, address indexed outputToken, uint256 outputAmount, address recipient);
 
     event Deposited(address indexed token, address indexed user, uint256 amount);
     event Withdrawn(address indexed token, address indexed user, uint256 amount);
@@ -36,12 +75,22 @@ contract AvalancheCoreBanking is Ownable, ReentrancyGuard, Pausable {
 
 
     /**
-     * @dev Constructor initializes the contract with an owner.
-     * It also sets the initial state for the Pausable contract.
+     * @dev Constructor initializes the contract with an owner, Chainlink Router address, and Uniswap V3 Swap Router.
+     * @param _initialOwner The initial owner of the contract.
+     * @param _router The address of the Chainlink CCIP Router contract for this chain.
+     * @param _uniswapV3SwapRouter The address of the Uniswap V3 Swap Router contract for this chain.
      */
-    constructor() Ownable(msg.sender) {
-        // Contract starts unpaused by default via Pausable constructor
+    constructor(address _initialOwner, address _router, address _uniswapV3SwapRouter)
+        Ownable(_initialOwner)
+        CCIPReceiver(_router)
+    {
+        require(_router != address(0), "Router address cannot be zero.");
+        require(_uniswapV3SwapRouter != address(0), "Uniswap V3 Swap Router address cannot be zero.");
+        i_router = IRouterClient(_router);
+        uniswapV3SwapRouter = ISwapRouter(_uniswapV3SwapRouter);
     }
+
+    // ===== Admin Functions =====
 
     /**
      * @dev Allows the owner to toggle support for an ERC20 token.
@@ -74,6 +123,40 @@ contract AvalancheCoreBanking is Ownable, ReentrancyGuard, Pausable {
         rwaHubContract = IRWAHub(_rwaHubAddress);
         emit RWAHubContractSet(_rwaHubAddress);
     }
+
+    /**
+     * @dev Allows the owner to set or update the Chainlink Price Feed address.
+     * @param _priceFeedAddress The address of the AggregatorV3Interface (Price Feed).
+     */
+    function setPriceFeed(address _priceFeedAddress) external onlyOwner {
+        require(_priceFeedAddress != address(0), "Price Feed address cannot be zero.");
+        priceFeed = AggregatorV3Interface(_priceFeedAddress);
+    }
+
+    /**
+     * @dev Allows the owner to set or update the Uniswap V3 Swap Router address.
+     * @param _newRouterAddress The address of the Uniswap V3 Swap Router contract.
+     */
+    function setUniswapV3SwapRouter(address _newRouterAddress) external onlyOwner {
+        require(_newRouterAddress != address(0), "New Uniswap V3 Swap Router address cannot be zero.");
+        uniswapV3SwapRouter = ISwapRouter(_newRouterAddress);
+    }
+
+    /**
+     * @dev Allows the owner to pause the contract, preventing certain operations.
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @dev Allows the owner to unpause the contract, enabling operations again.
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    // ===== User Functions =====
 
     /**
      * @dev Allows users to deposit ERC20 tokens into the contract.
@@ -123,7 +206,7 @@ contract AvalancheCoreBanking is Ownable, ReentrancyGuard, Pausable {
 
         IERC20(asset).transfer(address(aaveIntegrationContract), amount);
 
-        IAaveIntegration(address(aaveIntegrationContract)).supplyAsset(asset, amount);
+        IAaveIntegration(address(aaveIntegrationContract)).supplyAsset(asset, amount, address(this));
 
         emit SentToAave(msg.sender, asset, amount);
     }
@@ -154,24 +237,24 @@ contract AvalancheCoreBanking is Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Allows a user to send supported collateral tokens from their bank balance to the RWA Hub.
-     * This facilitates RWA tokenization where the RWA Hub would hold the collateral.
-     * @param collateralToken The address of the ERC20 token to use as collateral.
+     * @dev Allows a user to send supported collateral tokens to the RWAHub contract.
+     * These tokens are typically used to back RWA-related operations (e.g., fractionalization, loans).
+     * The RWAHub must be set and supported token.
+     * @param collateralToken The address of the ERC20 token to send as collateral.
      * @param amount The amount of collateral to send.
      */
     function sendCollateralForRWA(address collateralToken, uint256 amount) external nonReentrant whenNotPaused {
         require(address(rwaHubContract) != address(0), "RWA Hub contract not set.");
         require(isSupportedToken[collateralToken], "Collateral token not supported by this bank.");
         require(amount > 0, "Amount must be greater than 0.");
-        require(balances[collateralToken][msg.sender] >= amount, "Insufficient collateral balance in bank account.");
+        require(balances[collateralToken][msg.sender] >= amount, "Insufficient balance in bank account.");
 
         balances[collateralToken][msg.sender] -= amount;
 
         IERC20(collateralToken).transfer(address(rwaHubContract), amount);
 
-        // TODO: Optionally, call a function on the RWA Hub to register this collateral for a specific RWA minting
-        // This would require a more specific interface for IRWAHub
-        // TODO: IRWAHub(address(rwaHubContract)).registerCollateral(collateralToken, amount, msg.sender);
+        // TODO: Consider if RWAHub needs to be called to acknowledge receipt or process this collateral.
+        // For example, rwaHubContract.depositCollateral(msg.sender, collateralToken, amount);
 
         emit CollateralSentForRWA(msg.sender, collateralToken, amount);
     }
@@ -188,28 +271,183 @@ contract AvalancheCoreBanking is Ownable, ReentrancyGuard, Pausable {
         return balances[token][user];
     }
 
+    // ===== Chainlink Data Feed Integration =====
+
     /**
-     * @dev Allows the owner to pause the contract, preventing certain operations.
+     * @dev Returns the latest price from the configured Chainlink Price Feed.
+     * Assumes the priceFeed is set.
+     * @return latestPrice The latest price.
+     * @return timestamp The timestamp of the latest price update.
      */
-    function pause() external onlyOwner {
-        _pause();
+    function getLatestPrice() external view returns (int256 latestPrice, uint256 timestamp) {
+        require(address(priceFeed) != address(0), "Price Feed not set.");
+        (, int256 price, , uint256 updatedAt, ) = priceFeed.latestRoundData();
+        return (price, updatedAt);
+    }
+
+    // ===== Chainlink CCIP Integration with On-Chain Swap =====
+
+    /**
+     * @dev Sends ERC20 tokens from this contract to a recipient on a different blockchain via CCIP,
+     * with an instruction to perform a swap on the destination chain.
+     * The `msg.sender` must first have deposited the tokens into this contract's balance.
+     * This function will:
+     * 1. Deduct tokens from the caller's internal `balances` mapping.
+     * 2. Approve the Chainlink CCIP Router to pull the specified `inputToken` from this contract's balance.
+     * 3. Encode `targetOutputToken` and `finalRecipient` into the `data` field of the CCIP message.
+     * 4. Send the CCIP message, which includes the `inputToken` and the encoded swap instructions.
+     * Upon arrival, `_ccipReceive` on the destination will handle the swap and final transfer.
+     * Requires sufficient LINK or native gas token (sent via `msg.value`) to cover CCIP fees.
+     * Protected by `whenNotPaused` and `nonReentrant` modifiers.
+     * @param destinationChainSelector The Chainlink Chain Selector for the target blockchain.
+     * @param inputToken The address of the ERC20 token to send from the source chain.
+     * @param amount The amount of `inputToken` to send.
+     * @param targetOutputToken The address of the ERC20 token the user wishes to receive after the swap on the destination.
+     * @param finalRecipient The address of the ultimate recipient on the destination blockchain, who receives the swapped tokens.
+     * @param feeAmount The amount of LINK (or native gas token) to pay for CCIP fees.
+     */
+    function transferAndSwapCrossChain(
+        uint64 destinationChainSelector,
+        address inputToken,
+        uint256 amount,
+        address targetOutputToken,
+        address finalRecipient,
+        uint256 feeAmount // Amount of LINK to send for fees (msg.value if native)
+    ) external payable whenNotPaused nonReentrant {
+        require(inputToken != address(0), "Input token address cannot be zero.");
+        require(isSupportedToken[inputToken], "Input token not supported for cross-chain transfer.");
+        require(amount > 0, "Amount must be greater than 0.");
+        require(balances[inputToken][msg.sender] >= amount, "Insufficient balance for cross-chain transfer.");
+        require(targetOutputToken != address(0), "Target output token address cannot be zero.");
+        require(finalRecipient != address(0), "Final recipient address cannot be zero.");
+
+        balances[inputToken][msg.sender] -= amount;
+
+        (bool successApprove, ) = address(inputToken).call(abi.encodeWithSelector(IERC20.approve.selector, address(i_router), amount));
+        require(successApprove, "Failed to approve router for token transfer.");
+
+        Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
+        tokenAmounts[0] = Client.EVMTokenAmount({
+            token: inputToken,
+            amount: amount
+        });
+
+        // Encode instructions for the swap on the destination chain into message.data
+        // The destination contract (e.g., BioCrypticEvmCoreBanking.sol) will decode these.
+        bytes memory swapInstructions = abi.encode(targetOutputToken, finalRecipient);
+
+        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+            // Receiver on the destination chain is the target banking contract itself,
+            // as it will perform the swap and then forward to the final recipient.
+            receiver: finalRecipient, // The final recipient, the receiving contract will pass it on.
+            data: swapInstructions, // Custom data for swap instructions
+            tokenAmounts: tokenAmounts,
+            extraArgs: Client.EVM2AnyMessage.ExtraArgsV1({
+                gasLimit: 500_000, // Increased gas limit to accommodate swap operation
+                strict: false
+            }).encode(),
+            feeToken: address(0)
+        });
+
+        uint256 fees = i_router.getFee(destinationChainSelector, message);
+        require(msg.value >= fees + feeAmount, "Insufficient LINK or native token for CCIP fees.");
+
+        bytes32 messageId = i_router.ccipSend{value: msg.value}(
+            destinationChainSelector,
+            message
+        );
+
+        emit MessageSent(messageId);
+        emit TokensTransferred(messageId, inputToken, amount);
     }
 
     /**
-     * @dev Allows the owner to unpause the contract, enabling operations again.
+     * @dev Handles incoming CCIP messages (arbitrary data or token transfers).
+     * This function is called by the Chainlink CCIP Router on receipt of a cross-chain message.
+     * It now includes logic to perform an on-chain swap if `message.data` contains swap instructions.
+     * Implements `CCIPReceiver`'s `_ccipReceive` callback.
+     * @param message The received CCIP message.
      */
-    function unpause() external onlyOwner {
-        _unpause();
+    function _ccipReceive(Client.Message calldata message) internal override {
+        // Ensure this contract is set as the Uniswap Router for the swap.
+        require(address(uniswapV3SwapRouter) != address(0), "Uniswap V3 Swap Router not set.");
+
+        // Check if there are tokens AND swap instructions in the message data
+        if (message.tokenAmounts.length > 0 && message.data.length > 0) {
+            // Assume the first token is the one to be swapped
+            address inputTokenAddress = message.tokenAmounts[0].token;
+            uint256 inputAmount = message.tokenAmounts[0].amount;
+
+            // Decode swap instructions from message.data
+            (address targetOutputToken, address finalRecipient) = abi.decode(message.data, (address, address));
+
+            // Ensure the contract has enough balance of the input token (CCIP router already transferred it)
+            require(IERC20(inputTokenAddress).balanceOf(address(this)) >= inputAmount, "Insufficient received tokens for swap.");
+
+            // Approve the Uniswap V3 Swap Router to spend the input tokens from this contract
+            (bool successApprove, ) = address(inputTokenAddress).call(abi.encodeWithSelector(IERC20.approve.selector, address(uniswapV3SwapRouter), inputAmount));
+            require(successApprove, "Failed to approve Uniswap Router for swap.");
+
+            // Perform the swap using Uniswap V3's exactInputSingle
+            // For simplicity, fee is set to a common Uniswap V3 fee (e.g., 0.3% = 3000),
+            // and amountOutMinimum is set to 0. In a production system, these should be configurable
+            // or derived dynamically (e.g., from Chainlink Data Feeds + slippage tolerance).
+            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+                tokenIn: inputTokenAddress,
+                tokenOut: targetOutputToken,
+                fee: 3000, // Common 0.3% fee tier for Uniswap V3
+                recipient: address(this), // Send the output tokens back to this contract first
+                deadline: block.timestamp + 600, // 10 minutes from now
+                amountIn: inputAmount,
+                amountOutMinimum: 0, // IMPORTANT: For production, this should be set by sender/backend for slippage control
+                sqrtPriceLimitX96: 0 // No price limit
+            });
+
+            // Execute the swap
+            uint256 amountOut = uniswapV3SwapRouter.exactInputSingle(params);
+
+            // Transfer the swapped tokens to the final recipient
+            (bool successTransfer, ) = address(targetOutputToken).call(abi.encodeWithSelector(IERC20.transfer.selector, finalRecipient, amountOut));
+            require(successTransfer, "Failed to transfer swapped tokens to final recipient.");
+
+            emit CrossChainSwapExecuted(
+                message.messageId,
+                inputTokenAddress,
+                inputAmount,
+                targetOutputToken,
+                amountOut,
+                finalRecipient
+            );
+        } else {
+            // Handle cases where no swap is intended, but tokens or data are received
+            for (uint256 i = 0; i < message.tokenAmounts.length; i++) {
+                Client.EVMTokenAmount memory tokenAmount = message.tokenAmounts[i];
+                // TODO: For tokens received without swap instructions, credit to an internal banking account
+                // or handle as a direct cross-chain transfer into this contract's main balance.
+                // Example: balances[tokenAmount.token][someDefaultRecipient] += tokenAmount.amount;
+            }
+
+            if (message.data.length > 0) {
+                // TODO: Process `message.data` for arbitrary messaging without token swaps (e.g., RWA updates).
+            }
+        }
+
+        // Always emit the general CCIP message received event
+        emit CCIPMessageReceived(
+            message.messageId,
+            message.sourceChainSelector,
+            message.sender,
+            message.data,
+            message.tokenAmounts
+        );
     }
 
-    /**
-     * @dev Fallback function to accept native token (AVAX on EVM) for accidental transfers.
-     */
-    receive() external payable {}
+
+    // ===== Emergency Recovery =====
 
     /**
-     * @dev Allows the contract owner to recover any ERC20 tokens accidentally sent to this contract
-     * that are NOT part of the intended banking logic. This is for emergency recovery.
+     * @dev Allows the contract owner to recover any *unsupported* ERC20 tokens accidentally sent to this contract.
+     * For supported tokens, the regular `withdraw` function should be used.
      * @param tokenAddress The address of the ERC20 token to recover.
      * @param amount The amount of tokens to recover.
      */
@@ -226,4 +464,9 @@ contract AvalancheCoreBanking is Ownable, ReentrancyGuard, Pausable {
     function recoverNativeToken() external onlyOwner {
         payable(owner()).transfer(address(this).balance);
     }
+
+    /**
+     * @dev Fallback function to accept native token (AVAX on EVM) for accidental transfers.
+     */
+    receive() external payable {}
 }

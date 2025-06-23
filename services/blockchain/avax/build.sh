@@ -14,10 +14,11 @@ then
     exit 1
 fi
 
-# Step 1: Install OpenZeppelin contracts using npm (for Hardhat)
-# This will place them in the 'node_modules/' directory, allowing imports like "@openzeppelin/contracts/..."
-echo "Installing OpenZeppelin contracts using npm..."
-npm install @openzeppelin/contracts
+# Step 1: Install OpenZeppelin and Chainlink contracts using npm
+# Installing both @chainlink/contracts (for general interfaces like AggregatorV3)
+# and @chainlink/contracts-ccip (for CCIP specific components like Router, Client, Receiver).
+echo "Installing OpenZeppelin and Chainlink contracts using npm..."
+npm install @openzeppelin/contracts @chainlink/contracts @chainlink/contracts-ccip
 
 # Step 2: Clean Hardhat's cache to ensure a fresh compilation
 echo "Cleaning Hardhat cache..."

@@ -2,6 +2,8 @@
 [workspace]
 members = [
     "core-banking",
+    "did-management",
+    "account-recovery"
 ]
 resolver = "2" # Use the new Cargo resolver for better dependency resolution
 
