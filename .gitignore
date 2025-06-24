@@ -10,3 +10,5 @@ out
 */node_modules
 package-lock.json
 */venv
+*.user
+.vs
