@@ -1,5 +1,5 @@
 {
-  "name": "avax",
+  "name": "ccip",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -10,13 +10,9 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "latest"
-  },
-  "dependencies": {
-    "@aave/core-v3": "latest",
-    "@chainlink/contracts": "latest",
     "@chainlink/contracts-ccip": "latest",
-    "@openzeppelin/contracts": "latest"
+    "@nomicfoundation/hardhat-toolbox": "latest",
+    "@openzeppelin/contracts": "latest",
+    "hardhat": "latest"
   }
 }
